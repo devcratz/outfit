@@ -1,16 +1,165 @@
+-- Services
 local Players = game:GetService("Players")
-local player = Players.LocalPlayer
-local ModifyUsername_upvr = game.ReplicatedStorage:WaitForChild("ModifyUsername")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 
--- Function to modify the username
-local function modifyUsername()
-    ModifyUsername_upvr:FireServer("idontego")
+-- Variables
+local ModifyUsername_upvr = ReplicatedStorage:WaitForChild("ModifyUsername")
+local savedPosition = UDim2.new(0.5, -150, 0.5, -50) -- Default position
+local lastModifiedUsername = nil -- To save the last modified username
+local guiVisible = true -- Track GUI visibility
+
+-- Function to create the GUI
+local function createGUI()
+    -- Remove any existing GUI (to prevent duplicates after resetting)
+    local existingGUI = Players.LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("UsernameModifierGUI")
+    if existingGUI then
+        existingGUI:Destroy()
+    end
+
+    -- Create GUI Elements
+    local screenGui = Instance.new("ScreenGui")
+    local frame = Instance.new("Frame")
+    local textBox = Instance.new("TextBox")
+    local topText = Instance.new("TextLabel")
+    local bottomText = Instance.new("TextLabel")
+    local toggleButton = Instance.new("TextButton") -- Dot button to open/close the GUI
+    local buttonBorder = Instance.new("Frame") -- Border for the button
+
+    -- GUI Properties
+    screenGui.Name = "UsernameModifierGUI"
+    screenGui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+
+    frame.Size = UDim2.new(0, 300, 0, 150) -- Increased height to accommodate both text
+    frame.Position = savedPosition -- Restore the last saved position
+    frame.BackgroundColor3 = Color3.new(0, 0, 0) -- Black background
+    frame.BackgroundTransparency = 0.3 -- Slight transparency
+    frame.BorderSizePixel = 0 -- No border
+    frame.Visible = guiVisible -- Control visibility
+    frame.Parent = screenGui
+
+    textBox.Size = UDim2.new(0, 280, 0, 50)
+    textBox.Position = UDim2.new(0.5, -140, 0.5, -40) -- Adjusted position for the space below
+    textBox.PlaceholderText = "enter username"
+    textBox.Font = Enum.Font.SourceSans
+    textBox.TextSize = 18
+    textBox.Text = ""
+    textBox.TextColor3 = Color3.new(1, 1, 1) -- White text
+    textBox.BackgroundColor3 = Color3.new(0, 0, 0) -- Black background
+    textBox.BackgroundTransparency = 0.2 -- Slight transparency for the text box
+    textBox.BorderSizePixel = 0 -- No border
+    textBox.Parent = frame
+
+    topText.Size = UDim2.new(1, 0, 0, 20)
+    topText.Position = UDim2.new(0, 0, 0, 0)
+    topText.Text = "owned by devcrate on discord"
+    topText.TextColor3 = Color3.new(1, 1, 1) -- White text
+    topText.Font = Enum.Font.SourceSans
+    topText.TextSize = 14
+    topText.BackgroundColor3 = Color3.new(0, 0, 0)
+    topText.BackgroundTransparency = 0.5
+    topText.BorderSizePixel = 0
+    topText.Parent = frame
+
+    bottomText.Size = UDim2.new(1, 0, 0, 20)
+    bottomText.Position = UDim2.new(0, 0, 1, -30) -- Positioned below the text box, within the border
+    bottomText.Text = "hit enter when finished"
+    bottomText.TextColor3 = Color3.new(1, 1, 1) -- White text
+    bottomText.Font = Enum.Font.SourceSans
+    bottomText.TextSize = 14
+    bottomText.BackgroundColor3 = Color3.new(0, 0, 0)
+    bottomText.BackgroundTransparency = 0.5
+    bottomText.BorderSizePixel = 0
+    bottomText.Parent = frame
+
+    -- Create the Border for the Toggle Button
+    buttonBorder.Size = UDim2.new(0, 50, 0, 50) -- Border around the button, increased size
+    buttonBorder.Position = UDim2.new(1, -55, 1, -55) -- Position it in the bottom-right corner
+    buttonBorder.BackgroundColor3 = Color3.new(0, 0, 0) -- Black border
+    buttonBorder.BorderSizePixel = 2 -- Border thickness
+    buttonBorder.Parent = screenGui
+
+    -- Create the Toggle Button (Text now set to "-")
+    toggleButton.Size = UDim2.new(0, 35, 0, 35) -- Adjusted size
+    toggleButton.Position = UDim2.new(0.5, -17, 0.5, -17) -- Centered within the border
+    toggleButton.BackgroundColor3 = Color3.new(0.5, 0.5, 0.5) -- Gray background
+    toggleButton.BackgroundTransparency = 0 -- No transparency
+    toggleButton.BorderSizePixel = 0 -- No border
+    toggleButton.Text = "-" -- Set the button text to "-"
+    toggleButton.TextColor3 = Color3.new(0, 0, 0) -- Black text
+    toggleButton.Font = Enum.Font.SourceSansBold
+    toggleButton.TextSize = 24
+    toggleButton.Parent = buttonBorder
+
+    -- Toggle GUI visibility when button is clicked
+    toggleButton.MouseButton1Click:Connect(function()
+        guiVisible = not guiVisible
+        frame.Visible = guiVisible
+    end)
+
+    -- Make the frame draggable
+    local dragging
+    local dragInput
+    local dragStart
+    local startPos
+
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                    savedPosition = frame.Position -- Save the new position
+                end
+            end)
+        end
+    end)
+
+    frame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            dragInput = input
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+
+    -- Function to modify username
+    local function modifyUsername(username)
+        if username and username ~= "" then
+            lastModifiedUsername = username -- Save the last modified username
+            ModifyUsername_upvr:FireServer(username)
+        else
+            warn("No username entered!")
+        end
+    end
+
+    -- Keybind Listener (Enter Key)
+    textBox.FocusLost:Connect(function(enterPressed)
+        if enterPressed then
+            modifyUsername(textBox.Text)
+        end
+    end)
 end
 
--- Apply the modification initially
-modifyUsername()
+-- Create the GUI initially
+createGUI()
 
--- Reapply the modification whenever the character resets
-player.CharacterAdded:Connect(function()
-    modifyUsername()
+-- Reapply GUI and username when the player resets
+Players.LocalPlayer.CharacterAdded:Connect(function()
+    createGUI()
+    if lastModifiedUsername then
+        ModifyUsername_upvr:FireServer(lastModifiedUsername) -- Reapply last username
+    end
 end)
