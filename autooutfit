@@ -1,0 +1,16 @@
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local ModifyUsername_upvr = game.ReplicatedStorage:WaitForChild("ModifyUsername")
+
+-- Function to modify the username
+local function modifyUsername()
+    ModifyUsername_upvr:FireServer("idontego")
+end
+
+-- Apply the modification initially
+modifyUsername()
+
+-- Reapply the modification whenever the character resets
+player.CharacterAdded:Connect(function()
+    modifyUsername()
+end)
